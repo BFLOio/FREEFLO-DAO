@@ -8,8 +8,9 @@ pragma solidity 0.5.3;
 import "./Moloch.sol";
 import "./oz/SafeMath.sol";
 import "./oz/IERC20.sol";
+import "./Proposals.sol";
 
-contract MolochPool {
+contract MolochPool is Proposals {
     using SafeMath for uint256;
 
     event Sync (
@@ -114,31 +115,43 @@ contract MolochPool {
             "MolochPool: Proposal index too high"
         );
 
-        // declare proposal params
-        address applicant;
-        uint256 sharesRequested;
+        uint256 i = currentProposalIndex;
+
+        address electedCandidate;
         bool processed;
         bool didPass;
         bool aborted;
+        uint256 sharesRequested;
+        uint256 startingPeriod;
         uint256 tokenTribute;
         uint256 maxTotalSharesAtYesVote;
 
-        uint256 i = currentProposalIndex;
-
         while (i < toIndex) {
 
-            (, applicant, sharesRequested, , , , processed, didPass, aborted, tokenTribute, , maxTotalSharesAtYesVote) = moloch.proposalQueue(i);
+            (
+              ,
+              electedCandidate,
+              processed,
+              didPass,
+              aborted,
+              sharesRequested,
+              startingPeriod,
+              ,
+              ,
+              ,
+              maxTotalSharesAtYesVote
+            ) = moloch.getProposalVoteState(i);
 
-            if (!processed) { break; }
+            if (processed == false) {break;}
 
             // passing grant proposal, mint pool shares proportionally on behalf of the applicant
-            if (!aborted && didPass && tokenTribute == 0 && sharesRequested > 0) {
+            if (aborted == false && didPass == true && tokenTribute == 0 && sharesRequested > 0) {
                 // This can't revert:
                 //   1. maxTotalSharesAtYesVote > 0, otherwise nobody could have voted.
                 //   2. sharesRequested is <= 10**18 (see Moloch.sol:172), and
                 //      totalPoolShares <= 10**30, so multiplying them is <= 10**48 and < 2**160
                 uint256 sharesToMint = totalPoolShares.mul(sharesRequested).div(maxTotalSharesAtYesVote); // for a passing proposal, maxTotalSharesAtYesVote is > 0
-                _mintSharesForAddress(sharesToMint, applicant);
+                _mintSharesForAddress(sharesToMint, electedCandidate);
             }
 
             i++;
