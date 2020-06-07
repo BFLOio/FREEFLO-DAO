@@ -37,6 +37,6 @@ module.exports = {
   },
   solc: {
     version: '0.5.3',
-    evmVersion: 'byzantium'
+    evmVersion: 'constantinople'
   }
 }
